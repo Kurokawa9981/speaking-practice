@@ -8,7 +8,6 @@
 <meta name="apple-mobile-web-app-title" content="口說練習">
 <meta name="theme-color" content="#ffffff">
 <title>口說練習 — EN / JP</title>
-<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22%E5%8F%A3%E8%AA%AA%E7%B7%B4%E7%BF%92%22%2C%22short_name%22%3A%22%E5%8F%A3%E8%AA%AA%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%23ffffff%22%7D">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -30,6 +29,16 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; padding: 16px; padding-bottom: 32px; max-width: 640px; margin: 0 auto; }
   h1 { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
   h1 span { font-size: 13px; font-weight: 400; color: var(--text3); }
+
+  /* API Key setup screen */
+  #setupScreen { display: flex; flex-direction: column; gap: 12px; padding: 20px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
+  #setupScreen h2 { font-size: 15px; font-weight: 600; }
+  #setupScreen p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  #setupScreen input { width: 100%; padding: 10px 13px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg); font-size: 13px; color: var(--text); font-family: monospace; }
+  #setupScreen input:focus { outline: none; border-color: var(--text); }
+  #saveKeyBtn { padding: 10px 20px; border: none; border-radius: var(--radius-sm); background: var(--text); color: var(--bg); font-size: 14px; font-weight: 500; cursor: pointer; }
+  #keyStatus { font-size: 12px; color: var(--green); display: none; }
+  #changeKeyBtn { font-size: 12px; color: var(--text3); background: none; border: none; cursor: pointer; text-decoration: underline; display: none; }
 
   .row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
   .pill-btn { padding: 6px 16px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text2); transition: all 0.15s; }
@@ -78,6 +87,8 @@
   .speed-row input[type=range] { flex: 1; accent-color: var(--text); }
   .speed-row span { min-width: 32px; font-size: 12px; color: var(--text3); text-align: right; }
 
+  #mainApp { display: none; }
+
   @media (max-width: 400px) {
     body { padding: 12px; }
     .topic-grid { grid-template-columns: repeat(2, 1fr); }
@@ -88,37 +99,52 @@
 
 <h1>🗣️ 口說練習 <span>EN &amp; JP</span></h1>
 
-<div class="row" id="langRow">
-  <button class="pill-btn active" onclick="setLang('en')">English</button>
-  <button class="pill-btn" onclick="setLang('ja')">日本語</button>
+<!-- API Key Setup -->
+<div id="setupScreen">
+  <h2>🔑 設定 API Key</h2>
+  <p>請貼上你的 Anthropic API Key（<code>sk-ant-</code> 開頭）。Key 只存在你的瀏覽器裡，不會上傳到任何地方。</p>
+  <input type="password" id="keyInput" placeholder="sk-ant-api03-..." autocomplete="off">
+  <button id="saveKeyBtn" onclick="saveKey()">儲存並開始</button>
+  <span id="keyStatus">✓ Key 已儲存</span>
 </div>
 
-<div class="topic-grid" id="topicGrid">
-  <button class="topic-btn active" onclick="setTopic(this,'creative')">🎨 文創影視</button>
-  <button class="topic-btn" onclick="setTopic(this,'culture')">🏛️ 文化政治</button>
-  <button class="topic-btn" onclick="setTopic(this,'travel')">✈️ 旅遊</button>
-  <button class="topic-btn" onclick="setTopic(this,'taiwan')">🍜 台灣文化飲食</button>
-  <button class="topic-btn" onclick="setTopic(this,'free')">💬 自由對話</button>
-</div>
-
-<div class="speed-row">
-  <span>語速</span>
-  <input type="range" id="speedSlider" min="0.7" max="1.4" step="0.05" value="1.05" oninput="updateSpeed(this.value)">
-  <span id="speedLabel">1.05×</span>
-</div>
-
-<div class="chat" id="chat"></div>
-
-<div class="controls">
-  <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎙️</button>
-  <div class="input-wrap">
-    <textarea id="textInput" placeholder="或直接打字… (Enter 送出)" onkeydown="handleKey(event)"></textarea>
+<!-- Main App -->
+<div id="mainApp">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <div class="row" id="langRow" style="margin-bottom:0">
+      <button class="pill-btn active" onclick="setLang('en')">English</button>
+      <button class="pill-btn" onclick="setLang('ja')">日本語</button>
+    </div>
+    <button id="changeKeyBtn" onclick="changeKey()" style="font-size:12px; color:var(--text3); background:none; border:none; cursor:pointer; text-decoration:underline;">更換 Key</button>
   </div>
-  <button class="send-btn" id="sendBtn" onclick="sendText()">送出</button>
-</div>
 
-<div class="status"><div class="dot" id="dot"></div><span id="statusTxt">點麥克風開始說話</span></div>
-<div class="error-box" id="errBox"></div>
+  <div class="topic-grid" id="topicGrid">
+    <button class="topic-btn active" onclick="setTopic(this,'creative')">🎨 文創影視</button>
+    <button class="topic-btn" onclick="setTopic(this,'culture')">🏛️ 文化政治</button>
+    <button class="topic-btn" onclick="setTopic(this,'travel')">✈️ 旅遊</button>
+    <button class="topic-btn" onclick="setTopic(this,'taiwan')">🍜 台灣文化飲食</button>
+    <button class="topic-btn" onclick="setTopic(this,'free')">💬 自由對話</button>
+  </div>
+
+  <div class="speed-row">
+    <span>語速</span>
+    <input type="range" id="speedSlider" min="0.7" max="1.4" step="0.05" value="1.05" oninput="updateSpeed(this.value)">
+    <span id="speedLabel">1.05×</span>
+  </div>
+
+  <div class="chat" id="chat"></div>
+
+  <div class="controls">
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎙️</button>
+    <div class="input-wrap">
+      <textarea id="textInput" placeholder="或直接打字… (Enter 送出)" onkeydown="handleKey(event)"></textarea>
+    </div>
+    <button class="send-btn" id="sendBtn" onclick="sendText()">送出</button>
+  </div>
+
+  <div class="status"><div class="dot" id="dot"></div><span id="statusTxt">點麥克風開始說話</span></div>
+  <div class="error-box" id="errBox"></div>
+</div>
 
 <script>
 const TOPICS = {
@@ -155,10 +181,50 @@ const GREET = {
 let lang = 'en', topic = 'creative', isRec = false, isBusy = false;
 let recognition = null, synth = window.speechSynthesis;
 let history = [], speakRate = 1.05;
-let lastAiText = '';
+let synthKeepAlive = null;
 
 const hasSR = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// --- API Key management ---
+function getKey() { return localStorage.getItem('anthropic_key') || ''; }
+
+function saveKey() {
+  const k = document.getElementById('keyInput').value.trim();
+  if (!k.startsWith('sk-ant-')) { alert('請確認 Key 格式正確（sk-ant- 開頭）'); return; }
+  localStorage.setItem('anthropic_key', k);
+  document.getElementById('keyInput').value = '';
+  showMainApp();
+}
+
+function changeKey() {
+  localStorage.removeItem('anthropic_key');
+  document.getElementById('setupScreen').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('keyInput').value = '';
+}
+
+function showMainApp() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  resetChat();
+}
+
+// On load: check if key exists
+window.addEventListener('load', () => {
+  if (getKey()) { showMainApp(); }
+});
+
+// --- Speech synthesis keepalive (fixes Chrome pause bug) ---
+function startKeepAlive() {
+  stopKeepAlive();
+  synthKeepAlive = setInterval(() => {
+    if (synth.speaking) { synth.pause(); synth.resume(); }
+  }, 10000);
+}
+function stopKeepAlive() {
+  if (synthKeepAlive) { clearInterval(synthKeepAlive); synthKeepAlive = null; }
+}
 
 function updateSpeed(v) {
   speakRate = parseFloat(v);
@@ -216,7 +282,7 @@ function showErr(msg) {
 }
 
 function toggleMic() {
-  if (!hasSR) { showErr('你的瀏覽器不支援語音輸入。請用 Chrome 或 Safari（iOS）開啟這個檔案，並直接從檔案開啟（不是在 claude.ai 裡面）。'); return; }
+  if (!hasSR) { showErr('你的瀏覽器不支援語音輸入。請用 Chrome 或 Safari 開啟。'); return; }
   if (isRec) { stopMic(); return; }
   startMic();
 }
@@ -224,6 +290,7 @@ function toggleMic() {
 function startMic() {
   if (isBusy) return;
   showErr('');
+  synth.cancel();
   recognition = new SR();
   recognition.lang = lang === 'en' ? 'en-US' : 'ja-JP';
   recognition.interimResults = false;
@@ -265,7 +332,7 @@ function sendText() {
 
 async function processInput(text) {
   if (!text) return;
-  synth.cancel();
+  synth.cancel(); stopKeepAlive();
   addMsg('user', text);
   isBusy = true;
   setStatus('thinking', lang==='en'?'Partner is thinking…':'考えています…');
@@ -276,11 +343,16 @@ async function processInput(text) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': getKey(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, system:TOPICS[topic][lang], messages:history })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || 'API error');
+    if (!res.ok) throw new Error(data.error?.message || 'API error ' + res.status);
     const reply = data.content?.[0]?.text || '...';
     history.push({ role:'assistant', content:reply });
 
@@ -292,7 +364,7 @@ async function processInput(text) {
     speak(mainText);
   } catch(e) {
     showErr('API 錯誤：' + e.message);
-    setStatus('', lang==='en'?'Something went wrong.':'エラーが発生しました。');
+    setStatus('', '');
   }
   isBusy = false;
   document.getElementById('sendBtn').disabled = false;
@@ -301,18 +373,15 @@ async function processInput(text) {
 }
 
 function speak(text) {
-  synth.cancel();
+  synth.cancel(); stopKeepAlive();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = lang === 'en' ? 'en-US' : 'ja-JP';
   u.rate = speakRate;
   u.pitch = 1;
-  u.onstart = () => setStatus('speaking', lang==='en'?'Partner speaking…':'話しています…');
-  u.onend = () => setStatus('', lang==='en'?'Tap mic to speak':'マイクをタップして話す');
-  lastAiText = text;
+  u.onstart = () => { setStatus('speaking', lang==='en'?'Partner speaking…':'話しています…'); startKeepAlive(); };
+  u.onend = () => { stopKeepAlive(); setStatus('', lang==='en'?'Tap mic to speak':'マイクをタップして話す'); };
   synth.speak(u);
 }
-
-resetChat();
 </script>
 </body>
 </html>
